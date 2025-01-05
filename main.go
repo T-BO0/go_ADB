@@ -4,12 +4,17 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"net/smtp"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
+
+const throughADB = true
+
+var recepiants = []string{"tornike.tabatadze@makingscience.com"}
 
 func main() {
 	log.Println("starting")
@@ -122,20 +127,31 @@ func go_checkBattery(c_battery chan<- string) {
 
 // Function to to Start app with given app package
 func StartApp(appPackage string) {
-	_, err := RunAdbCommand("shell", "monkey", "-p", appPackage, "-c", "android.intent.category.LAUNCHER", "1")
+	_, err := RunAdbCommand(throughADB, "monkey", "-p", appPackage, "-c", "android.intent.category.LAUNCHER", "1")
 	if err != nil {
+		sendEmail(fmt.Sprintf("failed to start app. package: '%s', error: %v", appPackage, err))
 		log.Fatal(err)
 	}
 }
 
 // Function to click on an element based on text
 func ClickByText(text string) {
-	_, err := RunAdbCommand("shell", "uiautomator", "dump", "/sdcard/window_dump.xml")
+	_, err := RunAdbCommand(throughADB, "uiautomator", "dump", "/sdcard/window_dump.xml")
 	if err != nil {
+		sendEmail(fmt.Sprintf(`failed dump window content to 'window_dump.xml' for element with 
+			text: '%s',
+			error: %v,
+			cmd: '%s'`,
+			text, err, "uiautomator dum /sdcard/window_dump.xml"))
 		log.Fatal(err)
 	}
-	doc, err := RunAdbCommand("shell", "cat", "/sdcard/window_dump.xml")
+	doc, err := RunAdbCommand(throughADB, "cat", "/sdcard/window_dump.xml")
 	if err != nil {
+		sendEmail(fmt.Sprintf(`failed read content from 'window_dump.xml' for element with 
+			text: '%s',
+			error: %v,
+			cmd: '%s'`,
+			text, err, "cat /sdcard/window_dump.xml"))
 		log.Fatal(err)
 	}
 
@@ -144,6 +160,11 @@ func ClickByText(text string) {
 		if strings.Contains(nod, fmt.Sprintf("text=\"%s", text)) {
 			num1, num2, err := calculateMiddlePoint(nod)
 			if err != nil {
+				sendEmail(fmt.Sprintf(`failed read node from 'window_dump.xml' for element with 
+					text: '%s',
+					error: %v,
+					node: '%s'`,
+					text, err, nod))
 				log.Fatal(err)
 			}
 			Click(num1, num2)
@@ -153,12 +174,22 @@ func ClickByText(text string) {
 }
 
 func ClickByDescription(desc string) {
-	_, err := RunAdbCommand("shell", "uiautomator", "dump", "/sdcard/window_dump.xml")
+	_, err := RunAdbCommand(throughADB, "uiautomator", "dump", "/sdcard/window_dump.xml")
 	if err != nil {
+		sendEmail(fmt.Sprintf(`failed dump window content to 'window_dump.xml' for element with 
+			desc: '%s',
+			error: %v,
+			cmd: '%s'`,
+			desc, err, "uiautomator dump /sdcard/window_dump.xml"))
 		log.Fatal(err)
 	}
-	doc, err := RunAdbCommand("shell", "cat", "/sdcard/window_dump.xml")
+	doc, err := RunAdbCommand(throughADB, "cat", "/sdcard/window_dump.xml")
 	if err != nil {
+		sendEmail(fmt.Sprintf(`failed read content from 'window_dump.xml' for element with 
+			desc: '%s',
+			error: %v,
+			cmd: '%s'`,
+			desc, err, "cat /sdcard/window_dump.xml"))
 		log.Fatal(err)
 	}
 
@@ -167,6 +198,12 @@ func ClickByDescription(desc string) {
 		if strings.Contains(nod, fmt.Sprintf("content-desc=\"%s\"", desc)) {
 			num1, num2, err := calculateMiddlePoint(nod)
 			if err != nil {
+				sendEmail(fmt.Sprintf(`failed read node from 'window_dump.xml' for element with 
+					desc: '%s',
+					error: %v,
+					node: '%s'`,
+					desc, err, nod))
+
 				log.Fatal(err)
 			}
 			Click(num1, num2)
@@ -176,11 +213,18 @@ func ClickByDescription(desc string) {
 
 // Function to run an ADB command.
 // Take arguments comma separated.
-// Example: RunAdbCommand("shell", "input", "tap", "100", "100")
-func RunAdbCommand(args ...string) (string, error) {
+// Example: RunAdbCommand(throughADB, "input", "tap", "100", "100")
+func RunAdbCommand(throughADB bool, args ...string) (string, error) {
+	var cmd *exec.Cmd
 	// Create the command object
-	cmd := exec.Command("adb", args...)
-
+	if throughADB {
+		args = append([]string{"shell"}, args...)
+		cmd = exec.Command("adb", args...)
+		log.Println(cmd.String())
+	} else {
+		cmd = exec.Command("", args...)
+		log.Println(cmd.String())
+	}
 	// Capture standard output and standard error
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -198,7 +242,7 @@ func RunAdbCommand(args ...string) (string, error) {
 }
 
 func Click(x, y int) error {
-	_, err := RunAdbCommand("shell", "input", "tap", strconv.Itoa(x), strconv.Itoa(y))
+	_, err := RunAdbCommand(throughADB, "input", "tap", strconv.Itoa(x), strconv.Itoa(y))
 	return err
 }
 
@@ -239,8 +283,12 @@ func calculateMiddlePoint(xml string) (int, int, error) {
 
 // Function to check if the specific window is focused
 func IsFocusedOn(currentFocuse string) bool {
-	output, err := RunAdbCommand("shell", "dumpsys", "window", "|", "grep", "mCurrentFocus")
+	output, err := RunAdbCommand(throughADB, "dumpsys", "window", "|", "grep", "mCurrentFocus")
 	if err != nil {
+		sendEmail(fmt.Sprintf(`failed check if focused on 
+			content: '%s'
+			error: %v`,
+			currentFocuse, err))
 		log.Fatal(err)
 	}
 	return strings.Contains(output, currentFocuse)
@@ -254,8 +302,9 @@ func IsScreenUnlocked() bool {
 // Function to check if the screen is on NOTE: this does not check if the screen is locked or unlocked
 // for checking if the screen locked or unlocked use IsScreenUnlocked()
 func IsScreenOn() bool {
-	output, err := RunAdbCommand("shell", "dumpsys", "display", "|", "grep", "mScreenState")
+	output, err := RunAdbCommand(throughADB, "dumpsys", "display", "|", "grep", "mScreenState")
 	if err != nil {
+		sendEmail(fmt.Sprintf("failed to check if phone screen. err: %v, cmd:'%s'", err, "dumpsys display | grep mScreenState"))
 		log.Fatal(err)
 	}
 	return strings.Contains(output, "ON")
@@ -265,14 +314,16 @@ func IsScreenOn() bool {
 func UnlockScreen() {
 	if !IsScreenOn() {
 		// turn on the screen
-		_, err := RunAdbCommand("shell", "input", "keyevent", "26")
+		_, err := RunAdbCommand(throughADB, "input", "keyevent", "26")
 		if err != nil {
+			sendEmail(fmt.Sprintf("failed to unlock phone screen was on. err: %v, cmd:'%s'", err, "input keyevent 26"))
 			log.Fatal(err)
 		}
 
 		// unlock the screen
-		_, err = RunAdbCommand("shell", "input", "keyevent", "82")
+		_, err = RunAdbCommand(throughADB, "input", "keyevent", "82")
 		if err != nil {
+			sendEmail(fmt.Sprintf("failed to unlock phone screen. err: %v, cmd:'%s'", err, "input keyevent 82"))
 			log.Fatal(err)
 		}
 
@@ -280,8 +331,9 @@ func UnlockScreen() {
 
 	} else if !IsScreenUnlocked() {
 		// unlock the screen
-		_, err := RunAdbCommand("shell", "input", "keyevent", "82")
+		_, err := RunAdbCommand(throughADB, "input", "keyevent", "82")
 		if err != nil {
+			sendEmail(fmt.Sprintf("failed to unlock phone screen!. err: %v, cmd:'%s'", err, "input keyevent 82"))
 			log.Fatal(err)
 		}
 	}
@@ -289,25 +341,30 @@ func UnlockScreen() {
 
 // Function to stop an app with given package name
 func StopApp(packageName string) {
-	RunAdbCommand("shell", "am", "force-stop", packageName)
+	RunAdbCommand(throughADB, "am", "force-stop", packageName)
 }
 
 // Function to check if element is visible based on text value
 func IsElementVisible(text string) bool {
-	_, err := RunAdbCommand("shell", "uiautomator", "dump")
+	_, err := RunAdbCommand(throughADB, "uiautomator", "dump")
 	if err != nil {
+		sendEmail(fmt.Sprintf("failed dump window content to 'window_dump.xml' for element with text: '%s', error: %v", text, err))
 		log.Fatal(err)
 	}
 
-	output, err := RunAdbCommand("shell", "cat", "/sdcard/window_dump.xml")
+	output, err := RunAdbCommand(throughADB, "cat", "/sdcard/window_dump.xml")
 	if err != nil {
+		sendEmail(fmt.Sprintf(`failed to read content from 'window_dump.xml' and check element with 
+			text: '%s', 
+			error: %v, 
+			cmd: cat /sdcard/window_dump.xml'`, text, err))
 		log.Fatal(err)
 	}
 	return strings.Contains(output, fmt.Sprintf("text=\"%s", text))
 }
 
 func CheckInternetStability() uint8 {
-	output, err := RunAdbCommand("shell", "ping", "-c", "10", "google.com")
+	output, err := RunAdbCommand(throughADB, "ping", "-c", "10", "google.com")
 	if err != nil {
 		return 100
 	}
@@ -321,12 +378,14 @@ func extractPacketLoss(pingOutput string) uint8 {
 	match := re.FindStringSubmatch(pingOutput)
 
 	if len(match) < 2 {
+		sendEmail(fmt.Sprintf("failed to capture packet loss percentage. output: %s", match))
 		log.Fatal("failed to capture packet loss percentage")
 	}
 
 	// Convert the captured percentage to a float
 	packetLoss, err := strconv.ParseInt(match[1], 10, 8)
 	if err != nil {
+		sendEmail(fmt.Sprintf("failed to parse packet loss percentage. error: %v", err))
 		log.Fatal("failed to parse packet loss percentage: ", err)
 	}
 
@@ -335,8 +394,9 @@ func extractPacketLoss(pingOutput string) uint8 {
 
 // Function to check battery level
 func CheckBatteryLvl() int64 {
-	output, err := RunAdbCommand("shell", "dumpsys", "battery", "|", "grep", "level")
+	output, err := RunAdbCommand(throughADB, "dumpsys", "battery", "|", "grep", "level")
 	if err != nil {
+		sendEmail(fmt.Sprintf("failed to check battery level. error: %v, cmd: 'dumpsys battery | grep level'", err))
 		log.Fatal(err)
 	}
 	return extractBatteryLvl(output)
@@ -352,7 +412,37 @@ func extractBatteryLvl(output string) int64 {
 	// Convert the string to an integer
 	val, err := strconv.ParseInt(match, 10, 64)
 	if err != nil {
-		log.Fatal("failed to parse battery levle: ", val)
+		sendEmail(fmt.Sprintf("failed to extract battery level error: %v, from: %s", err, output))
+		log.Fatal("failed to parse battery levle from: ", output)
 	}
 	return val
+}
+
+func sendEmail(text string) {
+	// Sender email credentials
+	from := "keepzbot@gmail.com"
+	password := "agzo gpoi wyqn cbjo"
+
+	// Recipient email addresses
+	to := recepiants
+
+	// SMTP server configuration
+	smtpHost := "smtp.gmail.com"
+	smtpPort := "587"
+
+	// Message body
+	subject := "Subject: Liberty bot (payment)\n"
+	body := text
+	message := subject + "\n" + body
+
+	// Authentication
+	auth := smtp.PlainAuth("", from, password, smtpHost)
+
+	// Send the email
+	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from, to, []byte(message))
+	if err != nil {
+		fmt.Println("Error sending email:", err)
+		return
+	}
+	fmt.Println("Email sent successfully!")
 }
