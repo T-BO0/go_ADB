@@ -64,6 +64,8 @@ func main() {
 				break
 			} else if network == "internet is not stable" {
 				log.Println("internet is not stable, sending email")
+				sendEmail(`internet is not stable. might lost connection. onece connection lost. 
+					the bot will wait until internet is on and tries to start the app again.`)
 				continue
 			}
 			//!SECTION - Check Internet Connection <--
@@ -72,6 +74,7 @@ func main() {
 			battery := <-c_battery // from go_checkBattery
 			if battery == "battery is low" {
 				log.Println("battery is low, sending email")
+				sendEmail("battery is low, under 25%. Soon the bot might stop")
 			} else if battery == "battery is medium" {
 				log.Println("battery is medium")
 			}
