@@ -39,6 +39,7 @@ func main() {
 		}
 
 		UnlockScreen()
+		ConnectToDevice("192.168.1.18", "5555")
 		StopApp("ge.libertybank.business")
 		StartApp("ge.libertybank.business")
 		for i := 0; i < 6; i++ {
@@ -99,6 +100,15 @@ func go_checkBattery(c_battery chan<- string) {
 		} else {
 			c_battery <- "battery is high"
 		}
+	}
+}
+
+func ConnectToDevice(ip, port string) {
+	connectionString := fmt.Sprintf("%s:%S", ip, port)
+	_, err := RunAdbCommand(throughADB, "connect", connectionString)
+	if err != nil {
+		fmt.Printf("failed to connect to device with ip: %s, on port: %s ", ip, port)
+		sendEmail(fmt.Sprintf("failed to connect to device with ip: %s, on port: %s ", ip, port))
 	}
 }
 
