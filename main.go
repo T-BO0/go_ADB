@@ -16,86 +16,55 @@ const throughADB = true
 
 var recepiants = []string{"tornike.tabatadze@makingscience.com"}
 
+func min() {
+	stable := CheckInternetStability()
+	fmt.Printf("lost packages: %f\n", stable)
+}
+
 func main() {
 	log.Println("starting")
-	c_network := make(chan string, 2)
-	c_battery := make(chan string, 2)
-	defer StopApp("ge.libertybank.business")
+	c_network := make(chan string)
+	c_battery := make(chan string)
+	defer func() {
+		StopApp("ge.libertybank.business")
+	}()
 
 	go go_checkInternet(c_network)
 	go go_checkBattery(c_battery)
 	for {
-		//SECTION - Check Internet Connection -->
-		network := <-c_network // from go_checkinternet
-		if network == "internet is not available" {
-			log.Println("internet is not available")
-			continue
-		} else if network == "internet is not stable" {
-			log.Println("internet is not stable")
+		stability := CheckInternetStability()
+		if stability >= 50 {
+			fmt.Printf("internet stability is low: %f prc.\n going on retry!!", stability)
 			continue
 		}
-		//!SECTION - Check Internet Connection <--
-
-		//SECTION - Check Battery Level -->
-		battery := <-c_battery // from go_checkBattery
-		if battery == "battery is low" {
-			log.Println("battery is low")
-		} else if battery == "battery is medium" {
-			log.Println("battery is medium")
-		}
-		//!SECTION - Check Battery Level <--
 
 		UnlockScreen()
+		StopApp("ge.libertybank.business")
 		StartApp("ge.libertybank.business")
 		for i := 0; i < 6; i++ {
 			ClickByText("JKL")
 		}
-
 		ClickByDescription("სერვისები")
-
 		ClickByText("მიმდინარე დავალება")
 
 		for {
-			//SECTION - Check Internet Connection -->
-			internet := <-c_network
-			if internet == "internet is not available" {
-				log.Println("internet is not available. Trying to reconnect")
-				StopApp("ge.libertybank.business")
+			stability := CheckInternetStability()
+			fmt.Println("checking internet")
+			if stability >= 50 {
+				fmt.Printf("internet is not stable or lost the connection. \n Quiting, restrat once internet comes back")
 				break
-			} else if network == "internet is not stable" {
-				log.Println("internet is not stable, sending email")
-				sendEmail(`internet is not stable. might lost connection. onece connection lost. 
-					the bot will wait until internet is on and tries to start the app again.`)
-				continue
 			}
-			//!SECTION - Check Internet Connection <--
-
-			//SECTION - Check Battery Level -->
-			battery := <-c_battery // from go_checkBattery
-			if battery == "battery is low" {
-				log.Println("battery is low, sending email")
-				sendEmail("battery is low, under 25%. Soon the bot might stop")
-			} else if battery == "battery is medium" {
-				log.Println("battery is medium")
-			}
-			//!SECTION - Check Battery Level <--
-
 			if !IsElementVisible("Keepz payment") {
 				ClickByText("დავალებები")
 				ClickByText("ავტორიზება")
 			} else {
-
 				ClickByText("Keepz payment")
-
 				ClickByText("ავტორიზება")
-
 				for i := 0; i < 6; i++ {
 					ClickByText("JKL")
 				}
 				time.Sleep(3 * time.Second)
-
 				ClickByText("მიმდინარე დავალება")
-
 				ClickByText("ავტორიზება")
 			}
 		}
@@ -105,12 +74,15 @@ func main() {
 // go_rutine - Check internet connection
 func go_checkInternet(c_network chan<- string) {
 	for {
-		if CheckInternetStability() <= 50 {
+		lostPackages := CheckInternetStability()
+		if lostPackages <= 50 {
 			c_network <- "internet is stable"
-		} else if CheckInternetStability() > 50 && CheckInternetStability() <= 90 {
+		} else if lostPackages > 50 && lostPackages <= 90 {
 			c_network <- "internet is not stable"
+			sendEmail(fmt.Sprintf("internet is not stable we might lost connection! \n The bot will restart when internet is stable. \n instability level - %f", lostPackages))
 		} else {
 			c_network <- "internet is not available"
+			fmt.Println("no connection!!!")
 		}
 	}
 }
@@ -118,10 +90,12 @@ func go_checkInternet(c_network chan<- string) {
 // go_rutine - Check battery level
 func go_checkBattery(c_battery chan<- string) {
 	for {
-		if CheckBatteryLvl() <= 25 {
+		batteryLevel := CheckBatteryLvl()
+		if batteryLevel <= 25 {
 			c_battery <- "battery is low"
-		} else if CheckBatteryLvl() > 25 && CheckBatteryLvl() <= 60 {
+		} else if batteryLevel > 25 && batteryLevel <= 60 {
 			c_battery <- "battery is medium"
+			sendEmail(fmt.Sprintf("battery level is low! \n The bot will restart when internet is stable. \n Battery level - %d", batteryLevel))
 		} else {
 			c_battery <- "battery is high"
 		}
@@ -129,33 +103,34 @@ func go_checkBattery(c_battery chan<- string) {
 }
 
 // Function to to Start app with given app package
-func StartApp(appPackage string) {
+func StartApp(appPackage string) error {
 	_, err := RunAdbCommand(throughADB, "monkey", "-p", appPackage, "-c", "android.intent.category.LAUNCHER", "1")
 	if err != nil {
-		sendEmail(fmt.Sprintf("failed to start app. package: '%s', error: %v", appPackage, err))
-		log.Fatal(err)
+		log.Println(err)
+		return fmt.Errorf("failed to start app. package: '%s', error: %v", appPackage, err)
 	}
+	return nil
 }
 
 // Function to click on an element based on text
-func ClickByText(text string) {
+func ClickByText(text string) error {
 	_, err := RunAdbCommand(throughADB, "uiautomator", "dump", "/sdcard/window_dump.xml")
 	if err != nil {
-		sendEmail(fmt.Sprintf(`failed dump window content to 'window_dump.xml' for element with 
+		log.Println(err)
+		return fmt.Errorf(`failed dump window content to 'window_dump.xml' for element with 
 			text: '%s',
 			error: %v,
 			cmd: '%s'`,
-			text, err, "uiautomator dum /sdcard/window_dump.xml"))
-		log.Fatal(err)
+			text, err, "uiautomator dum /sdcard/window_dump.xml")
 	}
 	doc, err := RunAdbCommand(throughADB, "cat", "/sdcard/window_dump.xml")
 	if err != nil {
-		sendEmail(fmt.Sprintf(`failed read content from 'window_dump.xml' for element with 
+		log.Println(err)
+		return fmt.Errorf(`failed read content from 'window_dump.xml' for element with 
 			text: '%s',
 			error: %v,
 			cmd: '%s'`,
-			text, err, "cat /sdcard/window_dump.xml"))
-		log.Fatal(err)
+			text, err, "cat /sdcard/window_dump.xml")
 	}
 
 	arrdoc := strings.Split(doc, "<node")
@@ -163,37 +138,38 @@ func ClickByText(text string) {
 		if strings.Contains(nod, fmt.Sprintf("text=\"%s", text)) {
 			num1, num2, err := calculateMiddlePoint(nod)
 			if err != nil {
-				sendEmail(fmt.Sprintf(`failed read node from 'window_dump.xml' for element with 
+				log.Println(err)
+				return fmt.Errorf(`failed read node from 'window_dump.xml' for element with 
 					text: '%s',
 					error: %v,
 					node: '%s'`,
-					text, err, nod))
-				log.Fatal(err)
+					text, err, nod)
 			}
 			Click(num1, num2)
 			break
 		}
 	}
+	return nil
 }
 
-func ClickByDescription(desc string) {
+func ClickByDescription(desc string) error {
 	_, err := RunAdbCommand(throughADB, "uiautomator", "dump", "/sdcard/window_dump.xml")
 	if err != nil {
-		sendEmail(fmt.Sprintf(`failed dump window content to 'window_dump.xml' for element with 
+		log.Println(err)
+		return fmt.Errorf(`failed dump window content to 'window_dump.xml' for element with 
 			desc: '%s',
 			error: %v,
 			cmd: '%s'`,
-			desc, err, "uiautomator dump /sdcard/window_dump.xml"))
-		log.Fatal(err)
+			desc, err, "uiautomator dump /sdcard/window_dump.xml")
 	}
 	doc, err := RunAdbCommand(throughADB, "cat", "/sdcard/window_dump.xml")
 	if err != nil {
-		sendEmail(fmt.Sprintf(`failed read content from 'window_dump.xml' for element with 
+		log.Println(err)
+		return fmt.Errorf(`failed read content from 'window_dump.xml' for element with 
 			desc: '%s',
 			error: %v,
 			cmd: '%s'`,
-			desc, err, "cat /sdcard/window_dump.xml"))
-		log.Fatal(err)
+			desc, err, "cat /sdcard/window_dump.xml")
 	}
 
 	arrdoc := strings.Split(doc, "<node")
@@ -201,19 +177,20 @@ func ClickByDescription(desc string) {
 		if strings.Contains(nod, fmt.Sprintf("content-desc=\"%s\"", desc)) {
 			num1, num2, err := calculateMiddlePoint(nod)
 			if err != nil {
-				sendEmail(fmt.Sprintf(`failed read node from 'window_dump.xml' for element with 
+				log.Println(err)
+				return fmt.Errorf(`failed read node from 'window_dump.xml' for element with 
 					desc: '%s',
 					error: %v,
 					node: '%s'`,
-					desc, err, nod))
-
-				log.Fatal(err)
+					desc, err, nod)
 			}
 			Click(num1, num2)
 		}
 	}
+	return nil
 }
 
+// TODO - finish the rest
 // Function to run an ADB command.
 // Take arguments comma separated.
 // Example: RunAdbCommand(throughADB, "input", "tap", "100", "100")
@@ -225,7 +202,7 @@ func RunAdbCommand(throughADB bool, args ...string) (string, error) {
 		cmd = exec.Command("adb", args...)
 		log.Println(cmd.String())
 	} else {
-		cmd = exec.Command("", args...)
+		cmd = exec.Command(args[0], args[1:]...)
 		log.Println(cmd.String())
 	}
 	// Capture standard output and standard error
@@ -366,16 +343,17 @@ func IsElementVisible(text string) bool {
 	return strings.Contains(output, fmt.Sprintf("text=\"%s", text))
 }
 
-func CheckInternetStability() uint8 {
-	output, err := RunAdbCommand(throughADB, "ping", "-c", "10", "google.com")
+func CheckInternetStability() float32 {
+	output, err := RunAdbCommand(false, "ping", "-c", "10", "google.com")
 	if err != nil {
+		fmt.Println(err)
 		return 100
 	}
 	res := extractPacketLoss(output)
 	return res
 }
 
-func extractPacketLoss(pingOutput string) uint8 {
+func extractPacketLoss(pingOutput string) float32 {
 	// Regex to capture the packet loss percentage
 	re := regexp.MustCompile(`(\d+)% packet loss`)
 	match := re.FindStringSubmatch(pingOutput)
@@ -392,7 +370,7 @@ func extractPacketLoss(pingOutput string) uint8 {
 		log.Fatal("failed to parse packet loss percentage: ", err)
 	}
 
-	return uint8(packetLoss)
+	return float32(packetLoss)
 }
 
 // Function to check battery level
