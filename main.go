@@ -25,7 +25,7 @@ func main() {
 	go go_checkInternet()
 	for {
 		reset = false
-		go go_checkBattery(&reset)
+		go go_restart(&reset)
 		stability := CheckInternetStability()
 		if stability >= 50 {
 			fmt.Printf("internet stability is low: %f prc.\n going on retry!!", stability)
@@ -75,18 +75,14 @@ func main() {
 func go_checkInternet() {
 	for {
 		lostPackages := CheckInternetStability()
-		if lostPackages > 50 && lostPackages <= 90 {
+		if lostPackages > 50 && lostPackages <= 60 {
 			sendEmail(fmt.Sprintf("internet is not stable we might lost connection! \n The bot will restart when internet is stable. \n instability level - %f", lostPackages))
 		}
 	}
 }
 
-// go_rutine - Check battery level every one houre and triger restart
-func go_checkBattery(resetable *bool) {
-	batteryLevel := CheckBatteryLvl()
-	if batteryLevel > 25 && batteryLevel <= 60 {
-		sendEmail(fmt.Sprintf("battery level is low! \n The bot will restart when internet is stable. \n Battery level - %d", batteryLevel))
-	}
+// go_rutine - triger restart
+func go_restart(resetable *bool) {
 	time.Sleep(2 * time.Hour)
 	*resetable = true
 }
