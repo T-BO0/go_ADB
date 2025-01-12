@@ -16,22 +16,16 @@ const throughADB = true
 
 var recepiants = []string{"tornike.tabatadze@makingscience.com"}
 
-func min() {
-	stable := CheckInternetStability()
-	fmt.Printf("lost packages: %f\n", stable)
-}
-
 func main() {
 	log.Println("starting")
-	c_network := make(chan string)
-	c_battery := make(chan string)
+	var reset bool
 	defer func() {
 		StopApp("ge.libertybank.business")
 	}()
-
-	go go_checkInternet(c_network)
-	go go_checkBattery(c_battery)
+	go go_checkInternet()
 	for {
+		reset = false
+		go go_checkBattery(&reset)
 		stability := CheckInternetStability()
 		if stability >= 50 {
 			fmt.Printf("internet stability is low: %f prc.\n going on retry!!", stability)
@@ -49,6 +43,11 @@ func main() {
 		ClickByText("მიმდინარე დავალება")
 
 		for {
+			if reset {
+				fmt.Println("restarting the bot")
+				break
+			}
+
 			stability := CheckInternetStability()
 			fmt.Println("checking internet")
 			if stability >= 50 {
@@ -73,38 +72,27 @@ func main() {
 }
 
 // go_rutine - Check internet connection
-func go_checkInternet(c_network chan<- string) {
+func go_checkInternet() {
 	for {
 		lostPackages := CheckInternetStability()
-		if lostPackages <= 50 {
-			c_network <- "internet is stable"
-		} else if lostPackages > 50 && lostPackages <= 90 {
-			c_network <- "internet is not stable"
+		if lostPackages > 50 && lostPackages <= 90 {
 			sendEmail(fmt.Sprintf("internet is not stable we might lost connection! \n The bot will restart when internet is stable. \n instability level - %f", lostPackages))
-		} else {
-			c_network <- "internet is not available"
-			fmt.Println("no connection!!!")
 		}
 	}
 }
 
-// go_rutine - Check battery level
-func go_checkBattery(c_battery chan<- string) {
-	for {
-		batteryLevel := CheckBatteryLvl()
-		if batteryLevel <= 25 {
-			c_battery <- "battery is low"
-		} else if batteryLevel > 25 && batteryLevel <= 60 {
-			c_battery <- "battery is medium"
-			sendEmail(fmt.Sprintf("battery level is low! \n The bot will restart when internet is stable. \n Battery level - %d", batteryLevel))
-		} else {
-			c_battery <- "battery is high"
-		}
+// go_rutine - Check battery level every one houre and triger restart
+func go_checkBattery(resetable *bool) {
+	batteryLevel := CheckBatteryLvl()
+	if batteryLevel > 25 && batteryLevel <= 60 {
+		sendEmail(fmt.Sprintf("battery level is low! \n The bot will restart when internet is stable. \n Battery level - %d", batteryLevel))
 	}
+	time.Sleep(2 * time.Hour)
+	*resetable = true
 }
 
 func ConnectToDevice(ip, port string) {
-	connectionString := fmt.Sprintf("%s:%S", ip, port)
+	connectionString := fmt.Sprintf("%s:%s", ip, port)
 	_, err := RunAdbCommand(throughADB, "connect", connectionString)
 	if err != nil {
 		fmt.Printf("failed to connect to device with ip: %s, on port: %s ", ip, port)
