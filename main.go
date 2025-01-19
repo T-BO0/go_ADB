@@ -89,7 +89,7 @@ func handlePayment() {
 func startApp() {
 	// connect to device if needed
 	fmt.Println("connecting to device if needed")
-	action.ConnectToDevice("192.168.1.18", "5555")
+	action.ConnectToDevice("192.168.1.13", "5555")
 	// unlock screen if needed
 	fmt.Println("unlocking screen if needed")
 	action.UnlockScreen()
