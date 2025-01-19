@@ -266,17 +266,23 @@ func (a *Action) StartApp(appPackage string) error {
 
 // Function to connect device over network
 func (a *Action) ConnectToDevice(ip, port string) {
-	connectionString := fmt.Sprintf("%s:%s", ip, port)
-	cmd := exec.Command("adb", "connect", connectionString)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
+	// Define the ADB command and arguments
+	adbCmd := "adb"
+	connString := fmt.Sprintf("%s:%s", ip, port)
+	args := []string{"connect", connString}
+
+	// Execute the command
+	cmd := exec.Command(adbCmd, args...)
+	output, err := cmd.CombinedOutput() // Capture both stdout and stderr
+
+	// Check for errors
 	if err != nil {
-		fmt.Println(stderr, stderr)
+		fmt.Printf("Error executing ADB command: %v\n", err)
+		return
 	}
-	out, _ := RunAdbCommand(a.ThroughADB, "connect", connectionString)
-	fmt.Println(out)
+
+	// Print the output
+	fmt.Printf("ADB Output:\n%s\n", string(output))
 }
 
 // Function to Click on element based on Description
