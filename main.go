@@ -57,6 +57,7 @@ func main() {
 			fmt.Println("checking internet")
 			if stability >= 50 {
 				fmt.Printf("internet is not stable or lost the connection. \n Quiting, restrat once internet comes back")
+				action.StopApp("ge.libertybank.business")
 				break
 			}
 
