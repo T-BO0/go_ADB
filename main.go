@@ -87,12 +87,12 @@ func handlePayment() {
 
 // ANCHOR - start app
 func startApp() {
-	// unlock screen if needed
-	fmt.Println("unlocking screen if needed")
-	action.UnlockScreen()
 	// connect to device if needed
 	fmt.Println("connecting to device if needed")
 	action.ConnectToDevice("192.168.1.18", "5555")
+	// unlock screen if needed
+	fmt.Println("unlocking screen if needed")
+	action.UnlockScreen()
 	// close app if it was open before
 	fmt.Println("stoping the app if it is already running")
 	action.StopApp("ge.libertybank.business")
@@ -267,6 +267,14 @@ func (a *Action) StartApp(appPackage string) error {
 // Function to connect device over network
 func (a *Action) ConnectToDevice(ip, port string) {
 	connectionString := fmt.Sprintf("%s:%s", ip, port)
+	cmd := exec.Command("adb", "connect", connectionString)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println(stderr, stderr)
+	}
 	out, _ := RunAdbCommand(a.ThroughADB, "connect", connectionString)
 	fmt.Println(out)
 }
