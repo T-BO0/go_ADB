@@ -76,16 +76,12 @@ func handlePayment() {
 	} else {
 		fmt.Println("handling payment...")
 		action.ClickByText("Keepz payment")
-		time.Sleep(2 * time.Second)
 		action.ClickByText("ავტორიზება")
-		time.Sleep(2 * time.Second)
 		for i := 0; i < 6; i++ {
 			action.ClickByText("JKL")
 		}
 		action.ClickByText("მიმდინარე დავალება")
-		time.Sleep(2 * time.Second)
 		action.ClickByText("ავტორიზება")
-		time.Sleep(2 * time.Second)
 		fmt.Println("payment was handled successfully")
 	}
 }
