@@ -72,10 +72,7 @@ func handlePayment() {
 	if !action.IsElementVisible("Keepz payment") {
 		fmt.Println("there is no payment!")
 		action.ClickByText("დავალებები")
-		time.Sleep(2 * time.Second)
-		RunAdbCommand(action.ThroughADB, "input", "tap", "294", "611")
-		RunAdbCommand(action.ThroughADB, "input", "tap", "294", "611")
-		time.Sleep(2 * time.Second)
+		action.ClickByText("ავტორიზება")
 	} else {
 		fmt.Println("handling payment...")
 		action.ClickByText("Keepz payment")
