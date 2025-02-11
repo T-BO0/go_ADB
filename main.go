@@ -74,6 +74,7 @@ func handlePayment() {
 		action.ClickByText("დავალებები")
 		time.Sleep(2 * time.Second)
 		RunAdbCommand(action.ThroughADB, "input", "tap", "294", "611")
+		RunAdbCommand(action.ThroughADB, "input", "tap", "294", "611")
 		time.Sleep(2 * time.Second)
 	} else {
 		fmt.Println("handling payment...")
