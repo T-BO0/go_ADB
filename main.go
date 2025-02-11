@@ -18,7 +18,7 @@ var action Action
 
 func main() {
 	action = Action{
-		Duration:   time.Duration(30 * time.Second),
+		Duration:   time.Duration(10 * time.Second),
 		ThroughADB: true,
 	}
 
@@ -72,16 +72,22 @@ func handlePayment() {
 	if !action.IsElementVisible("Keepz payment") {
 		fmt.Println("there is no payment!")
 		action.ClickByText("დავალებები")
-		action.ClickByText("ავტორიზება")
+		time.Sleep(2 * time.Second)
+		RunAdbCommand(action.ThroughADB, "input", "tap", "294", "611")
+		time.Sleep(2 * time.Second)
 	} else {
 		fmt.Println("handling payment...")
 		action.ClickByText("Keepz payment")
+		time.Sleep(2 * time.Second)
 		action.ClickByText("ავტორიზება")
+		time.Sleep(2 * time.Second)
 		for i := 0; i < 6; i++ {
 			action.ClickByText("JKL")
 		}
 		action.ClickByText("მიმდინარე დავალება")
+		time.Sleep(2 * time.Second)
 		action.ClickByText("ავტორიზება")
+		time.Sleep(2 * time.Second)
 		fmt.Println("payment was handled successfully")
 	}
 }
@@ -120,7 +126,6 @@ func startApp() {
 		panic("failed to authorize. main page is not visible")
 	}
 	fmt.Println("successfully started the app")
-	return
 }
 
 // ANCHOR - navigate to tasks
@@ -507,7 +512,7 @@ func RunAdbCommand(throughADB bool, args ...string) (string, error) {
 		cmd = exec.Command("adb", args...)
 		log.Println(cmd.String())
 	} else {
-		cmd = exec.Command("bash", args...) // need on mobile from pc it will not work (omit 'bash')
+		cmd = exec.Command("bash", args...) // need on mobile from pc it will not work (omit 'bash') (args[0], args[1:]...)
 		log.Println(cmd.String())
 	}
 	// Capture standard output and standard error
