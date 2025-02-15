@@ -69,13 +69,13 @@ func main() {
 // ANCHOR - handle payment
 func handlePayment() {
 	fmt.Println("checking if there is any payment visible!!")
-	if !action.IsElementVisible("Keepz payment") {
+	if !action.IsElementVisibleById("operation_item_secondary_text") {
 		fmt.Println("there is no payment!")
 		action.ClickByText("დავალებები")
 		action.ClickByText("ავტორიზება")
 	} else {
 		fmt.Println("handling payment...")
-		action.ClickByText("Keepz payment")
+		action.ClickById("operation_item_secondary_text")
 		action.ClickByText("ავტორიზება")
 		for i := 0; i < 6; i++ {
 			action.ClickByText("JKL")
@@ -211,6 +211,25 @@ func (a *Action) IsElementVisible(text string) bool {
 		output, _ = RunAdbCommand(a.ThroughADB, "cat", "/sdcard/window_dump.xml")
 
 		if strings.Contains(output, fmt.Sprintf("text=\"%s", text)) {
+			return true
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+	return false
+}
+
+// Function to check if element is visible based on text value
+func (a *Action) IsElementVisibleById(text string) bool {
+	var output string
+	duration := a.Duration
+	start := time.Now()
+	for time.Since(start) < duration {
+		RunAdbCommand(a.ThroughADB, "uiautomator", "dump")
+
+		output, _ = RunAdbCommand(a.ThroughADB, "cat", "/sdcard/window_dump.xml")
+
+		if strings.Contains(output, fmt.Sprintf("resource-id=\"%s", text)) {
 			return true
 		}
 
@@ -495,6 +514,42 @@ func (a *Action) extractPacketLoss(pingOutput string) float32 {
 	return float32(packetLoss)
 }
 
+// Function to click on an element based on text
+func (a *Action) ClickById(text string) error {
+	if !a.IsElementVisibleById(text) {
+		return fmt.Errorf("failed to locate element with text: %s within duration %d", text, a.Duration)
+	}
+
+	// read xml file for element
+	doc, err := RunAdbCommand(a.ThroughADB, "cat", "/sdcard/window_dump.xml")
+	if err != nil {
+		panic(fmt.Errorf(`failed read content from 'window_dump.xml' for element with 
+			text: '%s',
+			error: %v,
+			cmd: '%s'`,
+			text, err, "cat /sdcard/window_dump.xml"))
+	}
+
+	// split xml content into arrays separated by "<node"
+	arrdoc := strings.Split(doc, "<node")
+
+	for _, nod := range arrdoc {
+		if strings.Contains(nod, fmt.Sprintf("resource-id=\"%s", text)) {
+			num1, num2, err := a.calculateMiddlePoint(nod) // pass given nod will get bounds and caluclates middle point for element
+			if err != nil {
+				panic(fmt.Errorf(`failed read node bounds from 'window_dump.xml' for element with 
+					text: '%s',
+					error: %v,
+					node: '%s'`,
+					text, err, nod))
+			}
+			a.Click(num1, num2)
+			break
+		}
+	}
+	return nil
+}
+
 // Function to run an ADB command.
 // Take arguments comma separated.
 // Example: RunAdbCommand(throughADB, "input", "tap", "100", "100")
@@ -506,7 +561,7 @@ func RunAdbCommand(throughADB bool, args ...string) (string, error) {
 		cmd = exec.Command("adb", args...)
 		log.Println(cmd.String())
 	} else {
-		cmd = exec.Command("bash", args...) // need on mobile from pc it will not work (omit 'bash') (args[0], args[1:]...)
+		cmd = exec.Command(args[0], args[1:]...) // need on mobile from pc it will not work (omit 'bash') (args[0], args[1:]...)
 		log.Println(cmd.String())
 	}
 	// Capture standard output and standard error
