@@ -14,7 +14,7 @@ import (
 
 const throughADB = true
 
-var recepiants = []string{"tornike.tabatadze@makingscience.com"}
+var recipients = []string{"tornike.tabatadze@makingscience.com"}
 
 func main() {
 	log.Println("starting")
@@ -36,7 +36,7 @@ func main() {
 		ConnectToDevice("192.168.1.18", "5555")
 		StopApp("ge.libertybank.business")
 		StartApp("ge.libertybank.business")
-		for i := 0; i < 6; i++ {
+		for range 6 {
 			ClickByText("JKL")
 		}
 		ClickByDescription("სერვისები")
@@ -51,7 +51,7 @@ func main() {
 			stability := CheckInternetStability()
 			fmt.Println("checking internet")
 			if stability >= 50 {
-				fmt.Printf("internet is not stable or lost the connection. \n Quiting, restrat once internet comes back")
+				fmt.Printf("internet is not stable or lost the connection. \n Quiting, restart once internet comes back")
 				break
 			}
 			if !IsElementVisible("Keepz payment") {
@@ -60,7 +60,7 @@ func main() {
 			} else {
 				ClickByText("Keepz payment")
 				ClickByText("ავტორიზება")
-				for i := 0; i < 6; i++ {
+				for range 6 {
 					ClickByText("JKL")
 				}
 				time.Sleep(3 * time.Second)
@@ -71,7 +71,7 @@ func main() {
 	}
 }
 
-// go_rutine - Check internet connection
+// go routine - Check internet connection
 func go_checkInternet() {
 	for {
 		lostPackages := CheckInternetStability()
@@ -81,7 +81,7 @@ func go_checkInternet() {
 	}
 }
 
-// go_rutine - triger restart
+// go routine - trigger restart
 func go_restart(resetable *bool) {
 	time.Sleep(2 * time.Hour)
 	*resetable = true
@@ -111,29 +111,29 @@ func ClickByText(text string) error {
 	_, err := RunAdbCommand(throughADB, "uiautomator", "dump", "/sdcard/window_dump.xml")
 	if err != nil {
 		log.Println(err)
-		return fmt.Errorf(`failed dump window content to 'window_dump.xml' for element with 
+		return fmt.Errorf(`failed dump window content to 'window_dump.xml' for element with
 			text: '%s',
 			error: %v,
 			cmd: '%s'`,
-			text, err, "uiautomator dum /sdcard/window_dump.xml")
+			text, err, "uiautomator dump /sdcard/window_dump.xml")
 	}
 	doc, err := RunAdbCommand(throughADB, "cat", "/sdcard/window_dump.xml")
 	if err != nil {
 		log.Println(err)
-		return fmt.Errorf(`failed read content from 'window_dump.xml' for element with 
+		return fmt.Errorf(`failed read content from 'window_dump.xml' for element with
 			text: '%s',
 			error: %v,
 			cmd: '%s'`,
 			text, err, "cat /sdcard/window_dump.xml")
 	}
 
-	arrdoc := strings.Split(doc, "<node")
-	for _, nod := range arrdoc {
+	arrdoc := strings.SplitSeq(doc, "<node")
+	for nod := range arrdoc {
 		if strings.Contains(nod, fmt.Sprintf("text=\"%s", text)) {
 			num1, num2, err := calculateMiddlePoint(nod)
 			if err != nil {
 				log.Println(err)
-				return fmt.Errorf(`failed read node from 'window_dump.xml' for element with 
+				return fmt.Errorf(`failed read node from 'window_dump.xml' for element with
 					text: '%s',
 					error: %v,
 					node: '%s'`,
@@ -150,7 +150,7 @@ func ClickByDescription(desc string) error {
 	_, err := RunAdbCommand(throughADB, "uiautomator", "dump", "/sdcard/window_dump.xml")
 	if err != nil {
 		log.Println(err)
-		return fmt.Errorf(`failed dump window content to 'window_dump.xml' for element with 
+		return fmt.Errorf(`failed dump window content to 'window_dump.xml' for element with
 			desc: '%s',
 			error: %v,
 			cmd: '%s'`,
@@ -159,20 +159,20 @@ func ClickByDescription(desc string) error {
 	doc, err := RunAdbCommand(throughADB, "cat", "/sdcard/window_dump.xml")
 	if err != nil {
 		log.Println(err)
-		return fmt.Errorf(`failed read content from 'window_dump.xml' for element with 
+		return fmt.Errorf(`failed read content from 'window_dump.xml' for element with
 			desc: '%s',
 			error: %v,
 			cmd: '%s'`,
 			desc, err, "cat /sdcard/window_dump.xml")
 	}
 
-	arrdoc := strings.Split(doc, "<node")
-	for _, nod := range arrdoc {
+	arrdoc := strings.SplitSeq(doc, "<node")
+	for nod := range arrdoc {
 		if strings.Contains(nod, fmt.Sprintf("content-desc=\"%s\"", desc)) {
 			num1, num2, err := calculateMiddlePoint(nod)
 			if err != nil {
 				log.Println(err)
-				return fmt.Errorf(`failed read node from 'window_dump.xml' for element with 
+				return fmt.Errorf(`failed read node from 'window_dump.xml' for element with
 					desc: '%s',
 					error: %v,
 					node: '%s'`,
@@ -259,7 +259,7 @@ func calculateMiddlePoint(xml string) (int, int, error) {
 func IsFocusedOn(currentFocuse string) bool {
 	output, err := RunAdbCommand(throughADB, "dumpsys", "window", "|", "grep", "mCurrentFocus")
 	if err != nil {
-		sendEmail(fmt.Sprintf(`failed check if focused on 
+		sendEmail(fmt.Sprintf(`failed check if focused on
 			content: '%s'
 			error: %v`,
 			currentFocuse, err))
@@ -328,9 +328,9 @@ func IsElementVisible(text string) bool {
 
 	output, err := RunAdbCommand(throughADB, "cat", "/sdcard/window_dump.xml")
 	if err != nil {
-		sendEmail(fmt.Sprintf(`failed to read content from 'window_dump.xml' and check element with 
-			text: '%s', 
-			error: %v, 
+		sendEmail(fmt.Sprintf(`failed to read content from 'window_dump.xml' and check element with
+			text: '%s',
+			error: %v,
 			cmd: cat /sdcard/window_dump.xml'`, text, err))
 		log.Fatal(err)
 	}
@@ -338,7 +338,7 @@ func IsElementVisible(text string) bool {
 }
 
 func CheckInternetStability() float32 {
-	output, err := RunAdbCommand(false, "ping", "-c", "10", "google.com")
+	output, err := RunAdbCommand(throughADB, "ping", "-c", "10", "google.com")
 	if err != nil {
 		fmt.Println(err)
 		return 100
@@ -388,7 +388,7 @@ func extractBatteryLvl(output string) int64 {
 	val, err := strconv.ParseInt(match, 10, 64)
 	if err != nil {
 		sendEmail(fmt.Sprintf("failed to extract battery level error: %v, from: %s", err, output))
-		log.Fatal("failed to parse battery levle from: ", output)
+		log.Fatal("failed to parse battery level from: ", output)
 	}
 	return val
 }
@@ -399,7 +399,7 @@ func sendEmail(text string) {
 	password := "agzo gpoi wyqn cbjo"
 
 	// Recipient email addresses
-	to := recepiants
+	to := recipients
 
 	// SMTP server configuration
 	smtpHost := "smtp.gmail.com"
