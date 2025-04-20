@@ -487,7 +487,7 @@ func (a *Action) ExtractBatteryLvl(output string) int64 {
 // It will return float32 between 0 <= t <= 100
 // the higher the worst internet. 100 indicates no internet
 func (a *Action) CheckInternetStability() float32 {
-	output, err := RunAdbCommand(true, "ping", "-c", "10", "google.com")
+	output, err := RunAdbCommand(false, "ping", "-c", "10", "google.com")
 	if err != nil {
 		fmt.Println(err)
 		return 100
