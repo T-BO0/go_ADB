@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const throughADB = false // false - will run from mobile; true - will run from machine;
+const throughADB = true // false - will run from mobile; true - will run from machine;
 
 var recipients = []string{"tornike.tabatadze@makingscience.com"}
 
@@ -338,7 +338,7 @@ func IsElementVisible(text string) bool {
 }
 
 func CheckInternetStability() float32 {
-	output, err := RunAdbCommand(throughADB, "ping", "-c", "10", "google.com")
+	output, err := RunAdbCommand(false, "ping", "-c", "10", "google.com")
 	if err != nil {
 		fmt.Println(err)
 		return 100
