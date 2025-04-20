@@ -487,7 +487,7 @@ func (a *Action) ExtractBatteryLvl(output string) int64 {
 // It will return float32 between 0 <= t <= 100
 // the higher the worst internet. 100 indicates no internet
 func (a *Action) CheckInternetStability() float32 {
-	output, err := RunAdbCommand(false, "ping", "-c", "10", "google.com")
+	output, err := RunAdbCommand(true, "ping", "-c", "10", "google.com")
 	if err != nil {
 		fmt.Println(err)
 		return 100
@@ -561,7 +561,7 @@ func RunAdbCommand(throughADB bool, args ...string) (string, error) {
 		cmd = exec.Command("adb", args...)
 		log.Println(cmd.String())
 	} else {
-		cmd = exec.Command("", args...) // need on mobile from pc it will not work (omit 'bash') (args[0], args[1:]...)
+		cmd = exec.Command("bash", args...) // need on mobile from pc it will not work (omit 'bash') (args[0], args[1:]...)
 		log.Println(cmd.String())
 	}
 	// Capture standard output and standard error
