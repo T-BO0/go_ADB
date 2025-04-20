@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const throughADB = true
+const throughADB = false // false - will run from mobile; true - will run from machine;
 
 var recipients = []string{"tornike.tabatadze@makingscience.com"}
 
@@ -32,8 +32,8 @@ func main() {
 			continue
 		}
 
+		ConnectToDevice("192.168.1.18", "5555") // this might not be necessary if manually connected
 		UnlockScreen()
-		ConnectToDevice("192.168.1.18", "5555")
 		StopApp("ge.libertybank.business")
 		StartApp("ge.libertybank.business")
 		for range 6 {
