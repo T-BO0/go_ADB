@@ -561,7 +561,7 @@ func RunAdbCommand(throughADB bool, args ...string) (string, error) {
 		cmd = exec.Command("adb", args...)
 		log.Println(cmd.String())
 	} else {
-		cmd = exec.Command("bash", args...) // need on mobile from pc it will not work (omit 'bash') (args[0], args[1:]...)
+		cmd = exec.Command("", args...) // need on mobile from pc it will not work (omit 'bash') (args[0], args[1:]...)
 		log.Println(cmd.String())
 	}
 	// Capture standard output and standard error
