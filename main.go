@@ -16,6 +16,7 @@ var recepiants = []string{"tornike.tabatadze@makingscience.com"}
 
 var action Action
 
+// test
 func main() {
 	action = Action{
 		Duration:   time.Duration(10 * time.Second),
