@@ -16,6 +16,8 @@ var recepiants = []string{"tornike.tabatadze@makingscience.com"}
 
 var action Action
 
+// test 2
+
 // test
 func main() {
 	action = Action{
